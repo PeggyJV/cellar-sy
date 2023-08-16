@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.21;
+pragma solidity 0.8.17;
 
-import { ERC4626 } from "@solmate/mixins/ERC4626.sol";
-import { Math } from "src/utils/Math.sol";
-import { Owned } from "@solmate/auth/Owned.sol";
+import { ERC4626 } from "solmate/src/mixins/ERC4626.sol";
+import { SolmateMath } from "./SolmateMath.sol";
+import { Owned } from "solmate/src/auth/Owned.sol";
 import { AutomationCompatibleInterface } from "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 
 contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
-    using Math for uint256;
+    using SolmateMath for uint256;
 
     // ========================================= STRUCTS =========================================
 
