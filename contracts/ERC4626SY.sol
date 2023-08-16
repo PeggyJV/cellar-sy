@@ -4,6 +4,7 @@ import "@pendle/core-v2/contracts/core/StandardizedYield/SYBase.sol";
 import {IERC4626} from "interfaces/IERC4626.sol";
 import {ISharePriceOracle} from "interfaces/ISharePriceOracle.sol";
 import {ERC4626SharePriceOracle} from "contracts/ERC4626SharePriceOracle.sol";
+import { SolmateMath } from "./SolmateMath.sol";
 
 /**
  * @title ERC4626 (Cellar) Generic SY Contract
@@ -15,7 +16,7 @@ import {ERC4626SharePriceOracle} from "contracts/ERC4626SharePriceOracle.sol";
  * TODO: rename contract to be ERC4626SY if we really want to advertise this as agnostic
  */
 contract ERC4626SY is SYBase {
-    using Math for uint256;
+    using SolmateMath for uint256;
 
     /**
      * Emitted when proposed SharePriceOracle does not match the respective ERC4626 vault.
@@ -52,7 +53,7 @@ contract ERC4626SY is SYBase {
         string memory _name,
         string memory _symbol,
         address _vaultAddress,
-        ISharePriceOracle _sharePriceOracle
+        address _sharePriceOracle
     ) SYBase(_name, _symbol, _vaultAddress) {
         //TODO should this be RYE it was _sweth
         vaultAddress = _vaultAddress;
@@ -60,18 +61,18 @@ contract ERC4626SY is SYBase {
         vaultAssetAddress = vault.asset();
 
         // TODO: try w/ internal helper, but it will likely not compile because cellarSY is not deployed yet.
-        _checkOracleInputs(_sharePriceOracle);
+        _checkOracleInputs(ERC4626SharePriceOracle(_sharePriceOracle));
         // if(_sharePriceOracle.target() != vault) revert CellarSY__ProposedSharePriceOracleTargetVaultMismatch(address(_sharePriceOracle)); 
 
         // if(_sharePriceOracle.decimals() != ORACLE_DECIMALS) revert CellarSY__ProposedSharePriceOracleDecimalsMismatch(address(_sharePriceOracle)); 
 
-        sharePriceOracle = _sharePriceOracle; // this is the sharePriceOracle corresponding to target below
-        TARGET_ASSET_DECIMALS = IERC20(vaultAssetAddress).decimals();
+        sharePriceOracle = ERC4626SharePriceOracle(_sharePriceOracle); // this is the sharePriceOracle corresponding to target below
+        TARGET_ASSET_DECIMALS = ERC20(vaultAssetAddress).decimals();
     }
 
     function setSharePriceOracle(address _newSharePriceOracle) external onlyOwner {
-        _checkOracleInputs(ISharePriceOracle(_newSharePriceOracle));
-        sharePriceOracle = ISharePriceOracle(_newSharePriceOracle);
+        _checkOracleInputs(ERC4626SharePriceOracle(_newSharePriceOracle));
+        sharePriceOracle = ERC4626SharePriceOracle(_newSharePriceOracle);
         // event
     }
 
@@ -112,7 +113,7 @@ contract ERC4626SY is SYBase {
      */
     function exchangeRate() public view virtual override returns (uint256) {
         uint256 sharePrice;
-        if(sharePriceOracle != address(0)) {
+        if(address(sharePriceOracle) != address(0)) {
             (, uint256 sharePrice, bool notSafeToUse) = sharePriceOracle.getLatest(); // sharePrice is equivalent to timeWeightedAverageAnswer when pulling from sharePriceOracle source
 
             // shareprice oracle always gives asset decimals
@@ -187,16 +188,17 @@ contract ERC4626SY is SYBase {
         return token == vaultAddress;
     }
 
+    // TODO: does this need to be pure?
     function assetInfo()
         external
-        pure
+        view
         returns (AssetType assetType, address assetAddress, uint8 assetDecimals)
     {
         return (AssetType.TOKEN, vaultAssetAddress, TARGET_ASSET_DECIMALS);
     }
 
-    function _checkOracleInputs(ISharePriceOracle _sharePriceOracle) internal virtual view returns (bool) {
-        if(_sharePriceOracle.target() != vault) revert CellarSY__ProposedSharePriceOracleTargetVaultMismatch(address(_sharePriceOracle)); 
+    function _checkOracleInputs(ERC4626SharePriceOracle _sharePriceOracle) internal virtual view returns (bool) {
+        if(address(_sharePriceOracle.target()) != address(vault)) revert CellarSY__ProposedSharePriceOracleTargetVaultMismatch(address(_sharePriceOracle)); 
 
         if(_sharePriceOracle.decimals() != ORACLE_DECIMALS) revert CellarSY__ProposedSharePriceOracleDecimalsMismatch(address(_sharePriceOracle)); 
 

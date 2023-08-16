@@ -33,11 +33,10 @@ contract RyeSY is ERC4626SY {
         string memory _name,
         string memory _symbol,
         address _vaultAddress,
-        ISharePriceOracle _sharePriceOracle
+        address _sharePriceOracle
     ) ERC4626SY(_name, _symbol, _vaultAddress, _sharePriceOracle) {
         // ensure WETH is the vault
-        vault = IERC4626(vaultAddress);
-        vaultAssetAddress = vault.asset();
+
         if(vaultAssetAddress != wethAddress) revert RyeSY__ProposedVaultAssetIsNotWETH(vaultAssetAddress);
     }
 
@@ -67,7 +66,7 @@ contract RyeSY is ERC4626SY {
 
     /**
      * @notice Returns the various tokens that are accepted to mint shares
-     * @return array that includes native ETH and WETH for RYE
+     * @return res array that includes native ETH and WETH for RYE
      */
     function getTokensIn()
         public

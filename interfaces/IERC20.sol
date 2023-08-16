@@ -5,6 +5,7 @@ pragma solidity ^0.8.17;
 
 /**
  * @dev Interface of the ERC20 standard as defined in the EIP.
+ * @dev Modified to have decimals getter
  */
 interface IERC20 {
     /**
@@ -76,4 +77,6 @@ interface IERC20 {
      * Emits a {Transfer} event.
      */
     function transferFrom(address from, address to, uint256 value) external returns (bool);
+
+    function decimals() external view returns (uint8);
 }
