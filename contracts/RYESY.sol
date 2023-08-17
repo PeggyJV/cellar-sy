@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 import "@pendle/core-v2/contracts/core/StandardizedYield/SYBase.sol";
-import {IERC4626} from "interfaces/IERC4626.sol";
-import {ISharePriceOracle} from "interfaces/ISharePriceOracle.sol";
-import {ERC4626SY} from "contracts/ERC4626SY.sol";
-import {IWETH} from "@pendle/core-v2/contracts/interfaces/IWETH.sol";
+import { IERC4626 } from "interfaces/IERC4626.sol";
+import { ISharePriceOracle } from "interfaces/ISharePriceOracle.sol";
+import { ERC4626SY } from "contracts/ERC4626SY.sol";
+import { IWETH } from "@pendle/core-v2/contracts/interfaces/IWETH.sol";
 
-// /** 
+// /**
 //  * @notice Extra interface for RyeSY for `WETH9.sol` access.
 //  */
 // interface IWETH {
@@ -21,7 +21,6 @@ import {IWETH} from "@pendle/core-v2/contracts/interfaces/IWETH.sol";
  * @dev This contract is built upon the base, ERC4626SY, that overrides certain functions as needed in it.
  */
 contract RyeSY is ERC4626SY {
-    
     /**
      * @notice Emitted when proposed SharePriceOracle does not match the respective ERC4626 vault.
      */
@@ -37,9 +36,9 @@ contract RyeSY is ERC4626SY {
     ) ERC4626SY(_name, _symbol, _vaultAddress, _sharePriceOracle) {
         // ensure WETH is the vault
 
-        if(vaultAssetAddress != wethAddress) revert RyeSY__ProposedVaultAssetIsNotWETH(vaultAssetAddress);
+        if (vaultAssetAddress != wethAddress)
+            revert RyeSY__ProposedVaultAssetIsNotWETH(vaultAssetAddress);
     }
-
 
     /**
      * @notice Helper that returns amount of shares to be minted, and takes into account native ETH, or tokenIn as WETH
@@ -53,7 +52,7 @@ contract RyeSY is ERC4626SY {
     ) internal virtual override returns (uint256 /*amountSharesOut*/) {
         if (tokenIn == NATIVE) {
             IWETH WETH = IWETH(tokenIn);
-            WETH.deposit{value: amountDeposited}();
+            WETH.deposit{ value: amountDeposited }();
         }
 
         // assume it is WETH then
@@ -68,13 +67,7 @@ contract RyeSY is ERC4626SY {
      * @notice Returns the various tokens that are accepted to mint shares
      * @return res array that includes native ETH and WETH for RYE
      */
-    function getTokensIn()
-        public
-        view
-        virtual
-        override
-        returns (address[] memory res)
-    {
+    function getTokensIn() public view virtual override returns (address[] memory res) {
         res = new address[](2);
         res[0] = wethAddress;
         res[1] = NATIVE;
@@ -84,10 +77,7 @@ contract RyeSY is ERC4626SY {
      * @notice Checks whether token is valid, and considers native ETH
      * @param token that is being checked
      */
-    function isValidTokenIn(
-        address token
-    ) public view virtual override returns (bool) {
+    function isValidTokenIn(address token) public view virtual override returns (bool) {
         return token == NATIVE || token == vaultAddress;
     }
-
 }

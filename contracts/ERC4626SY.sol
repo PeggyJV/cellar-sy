@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 import "@pendle/core-v2/contracts/core/StandardizedYield/SYBase.sol";
-import {IERC4626} from "interfaces/IERC4626.sol";
-import {ISharePriceOracle} from "interfaces/ISharePriceOracle.sol";
-import {ERC4626SharePriceOracle} from "contracts/ERC4626SharePriceOracle.sol";
+import { IERC4626 } from "interfaces/IERC4626.sol";
+import { ISharePriceOracle } from "interfaces/ISharePriceOracle.sol";
+import { ERC4626SharePriceOracle } from "contracts/ERC4626SharePriceOracle.sol";
 import { SolmateMath } from "./SolmateMath.sol";
 
 /**
@@ -62,9 +62,9 @@ contract ERC4626SY is SYBase {
 
         // TODO: try w/ internal helper, but it will likely not compile because cellarSY is not deployed yet.
         _checkOracleInputs(ERC4626SharePriceOracle(_sharePriceOracle));
-        // if(_sharePriceOracle.target() != vault) revert CellarSY__ProposedSharePriceOracleTargetVaultMismatch(address(_sharePriceOracle)); 
+        // if(_sharePriceOracle.target() != vault) revert CellarSY__ProposedSharePriceOracleTargetVaultMismatch(address(_sharePriceOracle));
 
-        // if(_sharePriceOracle.decimals() != ORACLE_DECIMALS) revert CellarSY__ProposedSharePriceOracleDecimalsMismatch(address(_sharePriceOracle)); 
+        // if(_sharePriceOracle.decimals() != ORACLE_DECIMALS) revert CellarSY__ProposedSharePriceOracleDecimalsMismatch(address(_sharePriceOracle));
 
         sharePriceOracle = ERC4626SharePriceOracle(_sharePriceOracle); // this is the sharePriceOracle corresponding to target below
         TARGET_ASSET_DECIMALS = ERC20(vaultAssetAddress).decimals();
@@ -113,23 +113,23 @@ contract ERC4626SY is SYBase {
      */
     function exchangeRate() public view virtual override returns (uint256) {
         uint256 sharePrice;
-        if(address(sharePriceOracle) != address(0)) {
+        if (address(sharePriceOracle) != address(0)) {
             (, uint256 sharePrice, bool notSafeToUse) = sharePriceOracle.getLatest(); // sharePrice is equivalent to timeWeightedAverageAnswer when pulling from sharePriceOracle source
 
             // shareprice oracle always gives asset decimals
             if (!notSafeToUse) {
                 sharePrice = sharePrice.changeDecimals(ORACLE_DECIMALS, TARGET_ASSET_DECIMALS);
-                return sharePrice; 
+                return sharePrice;
             }
-        }  
+        }
 
         // manual onchain calculation
         uint256 totalShares = vault.totalSupply();
         // Get total Assets but scale it up to decimals decimals of precision.
         uint256 totalAssets = vault.totalAssets();
         if (totalShares == 0) return 0;
-         sharePrice = uint256(10 ** vault.decimals()).mulDivDown(totalAssets, totalShares);
-        
+        sharePrice = uint256(10 ** vault.decimals()).mulDivDown(totalAssets, totalShares);
+
         return sharePrice;
     }
 
@@ -148,43 +148,27 @@ contract ERC4626SY is SYBase {
         address /*tokenOut*/,
         uint256 amountSharesToRedeem
     ) internal pure override returns (uint256 /*amountTokenOut*/) {
-        return amountSharesToRedeem; 
+        return amountSharesToRedeem;
     }
 
     /**
      * @dev Assumes singular base asset per ERC 4626 is the only token accepted
      */
-    function getTokensIn()
-        public
-        view
-        virtual
-        override
-        returns (address[] memory res)
-    {
+    function getTokensIn() public view virtual override returns (address[] memory res) {
         res = new address[](1);
         res[0] = vaultAssetAddress;
     }
 
-    function getTokensOut()
-        public
-        view
-        virtual
-        override
-        returns (address[] memory res)
-    {
+    function getTokensOut() public view virtual override returns (address[] memory res) {
         res = new address[](1);
         res[0] = vaultAddress;
     }
 
-    function isValidTokenIn(
-        address token
-    ) public view virtual override returns (bool) {
+    function isValidTokenIn(address token) public view virtual override returns (bool) {
         return token == vaultAssetAddress;
     }
 
-    function isValidTokenOut(
-        address token
-    ) public view virtual override returns (bool) {
+    function isValidTokenOut(address token) public view virtual override returns (bool) {
         return token == vaultAddress;
     }
 
@@ -197,10 +181,16 @@ contract ERC4626SY is SYBase {
         return (AssetType.TOKEN, vaultAssetAddress, TARGET_ASSET_DECIMALS);
     }
 
-    function _checkOracleInputs(ERC4626SharePriceOracle _sharePriceOracle) internal virtual view returns (bool) {
-        if(address(_sharePriceOracle.target()) != address(vault)) revert CellarSY__ProposedSharePriceOracleTargetVaultMismatch(address(_sharePriceOracle)); 
+    function _checkOracleInputs(
+        ERC4626SharePriceOracle _sharePriceOracle
+    ) internal view virtual returns (bool) {
+        if (address(_sharePriceOracle.target()) != address(vault))
+            revert CellarSY__ProposedSharePriceOracleTargetVaultMismatch(
+                address(_sharePriceOracle)
+            );
 
-        if(_sharePriceOracle.decimals() != ORACLE_DECIMALS) revert CellarSY__ProposedSharePriceOracleDecimalsMismatch(address(_sharePriceOracle)); 
+        if (_sharePriceOracle.decimals() != ORACLE_DECIMALS)
+            revert CellarSY__ProposedSharePriceOracleDecimalsMismatch(address(_sharePriceOracle));
 
         return true;
     }

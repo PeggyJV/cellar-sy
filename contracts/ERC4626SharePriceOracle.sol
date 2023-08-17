@@ -178,7 +178,8 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
 
         // Grow Observations array to required length, and fill it with observations that use 1 for timestamp and cumulative.
         // That way the initial upkeeps won't need to change state from 0 which is more expensive.
-        for (uint256 i; i < _observationsToUse; ++i) observations.push(Observation({ timestamp: 1, cumulative: 1 }));
+        for (uint256 i; i < _observationsToUse; ++i)
+            observations.push(Observation({ timestamp: 1, cumulative: 1 }));
 
         // Set to _startingAnswer so slot is dirty for first upkeep, and does not trigger kill switch.
         answer = _startingAnswer;
@@ -195,7 +196,9 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
      * @notice Leverages Automation V2 secure offchain computation to run expensive share price calculations offchain,
      *         then inject them onchain using `performUpkeep`.
      */
-    function checkUpkeep(bytes calldata) external view returns (bool upkeepNeeded, bytes memory performData) {
+    function checkUpkeep(
+        bytes calldata
+    ) external view returns (bool upkeepNeeded, bytes memory performData) {
         // Get target share price.
         uint216 sharePrice = _getTargetSharePrice();
         // Read state from one slot.
@@ -207,7 +210,8 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
         if (!_killSwitch) {
             // See if we need to update because answer is stale or outside deviation.
             // Time since answer was last updated.
-            uint256 timeDeltaCurrentAnswer = block.timestamp - observations[_currentIndex].timestamp;
+            uint256 timeDeltaCurrentAnswer = block.timestamp -
+                observations[_currentIndex].timestamp;
             uint256 timeDeltaSincePreviousObservation = block.timestamp -
                 observations[_getPreviousIndex(_currentIndex, _observationsLength)].timestamp;
             uint64 _heartbeat = heartbeat;
@@ -229,7 +233,8 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
      * @notice Save answer on chain, and update observations if needed.
      */
     function performUpkeep(bytes calldata performData) external {
-        if (msg.sender != automationRegistry) revert ERC4626SharePriceOracle__OnlyCallableByAutomationRegistry();
+        if (msg.sender != automationRegistry)
+            revert ERC4626SharePriceOracle__OnlyCallableByAutomationRegistry();
         (uint216 sharePrice, uint64 currentTime) = abi.decode(performData, (uint216, uint64));
 
         // Verify atleast one of the upkeep conditions was met.
@@ -258,7 +263,8 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
         // Update current observation.
         Observation storage currentObservation = observations[_currentIndex];
         // Make sure time is larger than previous time.
-        if (currentTime <= currentObservation.timestamp) revert ERC4626SharePriceOracle__StalePerformData();
+        if (currentTime <= currentObservation.timestamp)
+            revert ERC4626SharePriceOracle__StalePerformData();
 
         // Make sure time is not in the future.
         if (currentTime > block.timestamp) revert ERC4626SharePriceOracle__FuturePerformData();
@@ -269,7 +275,8 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
 
         // Use the old answer to calculate cumulative.
         uint256 currentCumulative = currentObservation.cumulative + (_answer * timeDelta);
-        if (currentCumulative > type(uint192).max) revert ERC4626SharePriceOracle__CumulativeTooLarge();
+        if (currentCumulative > type(uint192).max)
+            revert ERC4626SharePriceOracle__CumulativeTooLarge();
         currentObservation.cumulative = uint192(currentCumulative);
         currentObservation.timestamp = currentTime;
 
@@ -297,8 +304,17 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
         );
 
         // See if kill switch should be activated based on change between proposed answer and time weighted average answer.
-        if (!isNotSafeToUse && _checkIfKillSwitchShouldBeTriggered(sharePrice, timeWeightedAverageAnswer)) return;
-        emit OracleUpdated(block.timestamp, currentTime, sharePrice, timeWeightedAverageAnswer, isNotSafeToUse);
+        if (
+            !isNotSafeToUse &&
+            _checkIfKillSwitchShouldBeTriggered(sharePrice, timeWeightedAverageAnswer)
+        ) return;
+        emit OracleUpdated(
+            block.timestamp,
+            currentTime,
+            sharePrice,
+            timeWeightedAverageAnswer,
+            isNotSafeToUse
+        );
     }
 
     //============================== ORACLE VIEW FUNCTIONS ===============================
@@ -306,7 +322,11 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
     /**
      * @notice Get the latest answer, time weighted average answer, and bool indicating whether they can be safely used.
      */
-    function getLatest() external view returns (uint256 ans, uint256 timeWeightedAverageAnswer, bool notSafeToUse) {
+    function getLatest()
+        external
+        view
+        returns (uint256 ans, uint256 timeWeightedAverageAnswer, bool notSafeToUse)
+    {
         // Read state from one slot.
         ans = answer;
         uint16 _currentIndex = currentIndex;
@@ -350,14 +370,20 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
     /**
      * @notice Get the next index of observations array.
      */
-    function _getNextIndex(uint16 _currentIndex, uint16 _length) internal pure returns (uint16 nextIndex) {
+    function _getNextIndex(
+        uint16 _currentIndex,
+        uint16 _length
+    ) internal pure returns (uint16 nextIndex) {
         nextIndex = (_currentIndex == _length - 1) ? 0 : _currentIndex + 1;
     }
 
     /**
      * @notice Get the previous index of observations array.
      */
-    function _getPreviousIndex(uint16 _currentIndex, uint16 _length) internal pure returns (uint16 previousIndex) {
+    function _getPreviousIndex(
+        uint16 _currentIndex,
+        uint16 _length
+    ) internal pure returns (uint16 previousIndex) {
         previousIndex = (_currentIndex == 0) ? _length - 1 : _currentIndex - 1;
     }
 
@@ -373,13 +399,16 @@ contract ERC4626SharePriceOracle is AutomationCompatibleInterface {
         Observation memory mostRecentlyCompletedObservation = observations[
             _getPreviousIndex(_currentIndex, _observationsLength)
         ];
-        Observation memory oldestObservation = observations[_getNextIndex(_currentIndex, _observationsLength)];
+        Observation memory oldestObservation = observations[
+            _getNextIndex(_currentIndex, _observationsLength)
+        ];
 
         // Data is not set.
         if (oldestObservation.timestamp == 1) return (0, true);
 
         // Make sure that the old observations we are using are not too stale.
-        uint256 timeDelta = mostRecentlyCompletedObservation.timestamp - oldestObservation.timestamp;
+        uint256 timeDelta = mostRecentlyCompletedObservation.timestamp -
+            oldestObservation.timestamp;
         /// @dev use _length - 2 because
         /// remove 1 because observations array stores the current pending observation.
         /// remove 1 because we are really interested in the time between observations.

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-import {IERC20} from "./IERC20.sol";
-import {IERC20Metadata} from "./IERC20Metadata.sol";
+import { IERC20 } from "./IERC20.sol";
+import { IERC20Metadata } from "./IERC20Metadata.sol";
 
 /**
  * @dev Interface of the ERC4626 "Tokenized Vault Standard", as defined in
@@ -183,7 +183,11 @@ interface IERC4626 is IERC20, IERC20Metadata {
      * Note that some implementations will require pre-requesting to the Vault before a withdrawal may be performed.
      * Those methods should be performed separately.
      */
-    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) external returns (uint256 shares);
 
     /**
      * @dev Returns the maximum amount of Vault shares that can be redeemed from the owner balance in the Vault,
@@ -224,5 +228,9 @@ interface IERC4626 is IERC20, IERC20Metadata {
      * NOTE: some implementations will require pre-requesting to the Vault before a withdrawal may be performed.
      * Those methods should be performed separately.
      */
-    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external returns (uint256 assets);
 }

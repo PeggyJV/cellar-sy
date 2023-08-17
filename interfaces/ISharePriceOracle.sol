@@ -5,9 +5,5 @@ interface ISharePriceOracle {
     function getLatest()
         external
         view
-        returns (
-            uint256 answer,
-            uint256 timeWeightedAverageAnswer,
-            bool isNotSafeToUse
-        );
+        returns (uint256 answer, uint256 timeWeightedAverageAnswer, bool isNotSafeToUse);
 }
