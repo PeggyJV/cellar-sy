@@ -13,7 +13,6 @@
         "@openzeppelin/contracts": "4.7.3",
         "@openzeppelin/contracts-upgradeable": "4.7.3",
         "@pendle/core-v2": "^2.26.4",
-        "solhint-plugin-prettier": "^0.0.5",
         "solmate": "^6.2.0"
     },
     "scripts": {
