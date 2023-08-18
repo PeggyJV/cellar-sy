@@ -2,16 +2,9 @@
 pragma solidity 0.8.17;
 import "@pendle/core-v2/contracts/core/StandardizedYield/SYBase.sol";
 import { IERC4626 } from "interfaces/IERC4626.sol";
-import { ISharePriceOracle } from "interfaces/ISharePriceOracle.sol";
+import { IERC4626SharePriceOracle } from "interfaces/IERC4626SharePriceOracle.sol";
 import { ERC4626SY } from "contracts/ERC4626SY.sol";
 import { IWETH } from "@pendle/core-v2/contracts/interfaces/IWETH.sol";
-
-// /**
-//  * @notice Extra interface for RyeSY for `WETH9.sol` access.
-//  */
-// interface IWETH {
-//     function deposit() external payable;
-// }
 
 /**
  * @title RYE Vault (Cellar) SY Contract

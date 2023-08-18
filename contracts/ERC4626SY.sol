@@ -2,8 +2,7 @@
 pragma solidity 0.8.17;
 import "@pendle/core-v2/contracts/core/StandardizedYield/SYBase.sol";
 import { IERC4626 } from "interfaces/IERC4626.sol";
-import { ISharePriceOracle } from "interfaces/ISharePriceOracle.sol";
-import { ERC4626SharePriceOracle } from "contracts/ERC4626SharePriceOracle.sol";
+import { IERC4626SharePriceOracle } from "interfaces/IERC4626SharePriceOracle.sol";
 import { SolmateMath } from "./SolmateMath.sol";
 
 /**
@@ -13,7 +12,6 @@ import { SolmateMath } from "./SolmateMath.sol";
  * @dev SharePriceOracle source is upgradeable. Owner is a timelock.
  * @dev This contract serves as a base for ERC4626 contracts to built upon as most functions are virtual and able to be overridden.
  * TODO: we want timelock to be the owner. Add into repo.
- * TODO: rename contract to be ERC4626SY if we really want to advertise this as agnostic
  */
 contract ERC4626SY is SYBase {
     using SolmateMath for uint256;
@@ -21,18 +19,18 @@ contract ERC4626SY is SYBase {
     /**
      * Emitted when proposed SharePriceOracle does not match the respective ERC4626 vault.
      */
-    error CellarSY__ProposedSharePriceOracleTargetVaultMismatch(address sharePriceOracle);
+    error ERC4626SY__ProposedSharePriceOracleTargetVaultMismatch(address sharePriceOracle);
 
     /**
      * Emitted when proposed SharePriceOracle decimals does not match the var ORACLE_DECIMALS.
      */
-    error CellarSY__ProposedSharePriceOracleDecimalsMismatch(address sharePriceOracle);
+    error ERC4626SY__ProposedSharePriceOracleDecimalsMismatch(address sharePriceOracle);
 
-    // vars
+    error ERC4626SY__ProposedTokenInMismatchWithVaultAsset(address proposedTokenIn);
 
     address public immutable vaultAddress;
     address public immutable vaultAssetAddress;
-    ERC4626SharePriceOracle public sharePriceOracle;
+    IERC4626SharePriceOracle public sharePriceOracle;
 
     /**
      * @notice ERC4626 target vault this contract is an oracle for.
@@ -55,24 +53,17 @@ contract ERC4626SY is SYBase {
         address _vaultAddress,
         address _sharePriceOracle
     ) SYBase(_name, _symbol, _vaultAddress) {
-        //TODO should this be RYE it was _sweth
         vaultAddress = _vaultAddress;
         vault = IERC4626(vaultAddress);
         vaultAssetAddress = vault.asset();
-
-        // TODO: try w/ internal helper, but it will likely not compile because cellarSY is not deployed yet.
-        _checkOracleInputs(ERC4626SharePriceOracle(_sharePriceOracle));
-        // if(_sharePriceOracle.target() != vault) revert CellarSY__ProposedSharePriceOracleTargetVaultMismatch(address(_sharePriceOracle));
-
-        // if(_sharePriceOracle.decimals() != ORACLE_DECIMALS) revert CellarSY__ProposedSharePriceOracleDecimalsMismatch(address(_sharePriceOracle));
-
-        sharePriceOracle = ERC4626SharePriceOracle(_sharePriceOracle); // this is the sharePriceOracle corresponding to target below
+        _checkOracleInputs(IERC4626SharePriceOracle(_sharePriceOracle));
+        sharePriceOracle = IERC4626SharePriceOracle(_sharePriceOracle); // this is the sharePriceOracle corresponding to target below
         TARGET_ASSET_DECIMALS = ERC20(vaultAssetAddress).decimals();
     }
 
     function setSharePriceOracle(address _newSharePriceOracle) external onlyOwner {
-        _checkOracleInputs(ERC4626SharePriceOracle(_newSharePriceOracle));
-        sharePriceOracle = ERC4626SharePriceOracle(_newSharePriceOracle);
+        _checkOracleInputs(IERC4626SharePriceOracle(_newSharePriceOracle));
+        sharePriceOracle = IERC4626SharePriceOracle(_newSharePriceOracle);
         // event
     }
 
@@ -90,7 +81,8 @@ contract ERC4626SY is SYBase {
         address tokenIn,
         uint256 amountDeposited
     ) internal virtual override returns (uint256 /*amountSharesOut*/) {
-        require(tokenIn == vaultAssetAddress); // TODO: write error statement, not sure if we want a revert though actually.
+        if (tokenIn == vaultAssetAddress)
+            revert ERC4626SY__ProposedTokenInMismatchWithVaultAsset(tokenIn);
         return vault.deposit(amountDeposited, address(this));
     }
 
@@ -111,15 +103,14 @@ contract ERC4626SY is SYBase {
      * @notice Get exchange rate or calculate on chain if source is deemed unsafe.
      * @dev asset in accordance to IStandardizedYield is the ERC 4626 base asset. So for RYE, it's wETH. For RYU, is USDC.
      */
-    function exchangeRate() public view virtual override returns (uint256) {
-        uint256 sharePrice;
+    function exchangeRate() public view virtual override returns (uint256 res) {
+        uint256 res;
         if (address(sharePriceOracle) != address(0)) {
-            (, uint256 sharePrice, bool notSafeToUse) = sharePriceOracle.getLatest(); // sharePrice is equivalent to timeWeightedAverageAnswer when pulling from sharePriceOracle source
+            (, uint256 res, bool notSafeToUse) = sharePriceOracle.getLatest(); // sharePrice is equivalent to timeWeightedAverageAnswer when pulling from sharePriceOracle source
 
             // shareprice oracle always gives asset decimals
             if (!notSafeToUse) {
-                sharePrice = sharePrice.changeDecimals(ORACLE_DECIMALS, TARGET_ASSET_DECIMALS);
-                return sharePrice;
+                res = res.changeDecimals(ORACLE_DECIMALS, TARGET_ASSET_DECIMALS);
             }
         }
 
@@ -128,9 +119,7 @@ contract ERC4626SY is SYBase {
         // Get total Assets but scale it up to decimals decimals of precision.
         uint256 totalAssets = vault.totalAssets();
         if (totalShares == 0) return 0;
-        sharePrice = uint256(10 ** vault.decimals()).mulDivDown(totalAssets, totalShares);
-
-        return sharePrice;
+        res = uint256(10 ** vault.decimals()).mulDivDown(totalAssets, totalShares);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -182,15 +171,15 @@ contract ERC4626SY is SYBase {
     }
 
     function _checkOracleInputs(
-        ERC4626SharePriceOracle _sharePriceOracle
+        IERC4626SharePriceOracle _sharePriceOracle
     ) internal view virtual returns (bool) {
         if (address(_sharePriceOracle.target()) != address(vault))
-            revert CellarSY__ProposedSharePriceOracleTargetVaultMismatch(
+            revert ERC4626SY__ProposedSharePriceOracleTargetVaultMismatch(
                 address(_sharePriceOracle)
             );
 
         if (_sharePriceOracle.decimals() != ORACLE_DECIMALS)
-            revert CellarSY__ProposedSharePriceOracleDecimalsMismatch(address(_sharePriceOracle));
+            revert ERC4626SY__ProposedSharePriceOracleDecimalsMismatch(address(_sharePriceOracle));
 
         return true;
     }
