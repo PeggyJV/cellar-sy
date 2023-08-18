@@ -1,142 +1,76 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.17;
 import "@pendle/core-v2/contracts/core/StandardizedYield/SYBase.sol";
+import { IERC4626 } from "interfaces/IERC4626.sol";
+import { IERC4626SharePriceOracle } from "interfaces/IERC4626SharePriceOracle.sol";
+import { ERC4626SY } from "contracts/ERC4626SY.sol";
+import { IWETH } from "@pendle/core-v2/contracts/interfaces/IWETH.sol";
 
-// import "./interfaces/ISwETH.sol";
+/**
+ * @title RYE Vault (Cellar) SY Contract
+ * @notice RYE SY Contract in reference to Pendle IStandardizedYield.sol && SYBase.sol guidelines
+ * @author crispymangoes, 0xEinCodes
+ * @dev ERC4626SY has the base implementation
+ * @dev This contract is built upon the base, ERC4626SY, that overrides certain functions as needed in it.
+ */
+contract RyeSY is ERC4626SY {
+    /**
+     * @notice Emitted when proposed SharePriceOracle does not match the respective ERC4626 vault.
+     */
+    error RyeSY__ProposedVaultAssetIsNotWETH(address proposedVaultAsset);
 
-interface IERC4626 {
-    function deposit(
-        uint256 amount,
-        address receiver
-    ) external returns (uint256 shares);
-
-    function transfer(address to, uint256 amount) external;
-}
-
-interface SharePriceOracle {
-    function getLatest()
-        external
-        view
-        returns (
-            uint256 answer,
-            uint256 timeWeightedAverageAnswer,
-            bool isNotSafeToUse
-        );
-}
-
-contract RYESY is SYBase {
-    using Math for uint256;
-
-    address public immutable rye;
-    address public immutable WETH;
-    SharePriceOracle public spo;
+    address public constant wethAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     constructor(
         string memory _name,
         string memory _symbol,
-        address _rye,
-        address _weth
-    ) SYBase(_name, _symbol, _rye) {
-        //TODO should this be RYE it was _sweth
-        rye = _rye;
-        WETH = _weth;
+        address _vaultAddress,
+        address _sharePriceOracle
+    ) ERC4626SY(_name, _symbol, _vaultAddress, _sharePriceOracle) {
+        // ensure WETH is the vault
+
+        if (vaultAssetAddress != wethAddress)
+            revert RyeSY__ProposedVaultAssetIsNotWETH(vaultAssetAddress);
     }
 
-    function setSPO(address newSPO) external onlyOwner {
-        spo = SharePriceOracle(newSPO);
-        // event
-    }
-
-    /*///////////////////////////////////////////////////////////////
-                    DEPOSIT/REDEEM USING BASE TOKENS
-    //////////////////////////////////////////////////////////////*/
-
+    /**
+     * @notice Helper that returns amount of shares to be minted, and takes into account native ETH, or tokenIn as WETH
+     * @param tokenIn Base asset corresponding to Vault
+     * @param amountDeposited Amount of Base Asset to be deposited
+     * @return number of shares to be minted within deposit() function
+     */
     function _deposit(
         address tokenIn,
         uint256 amountDeposited
     ) internal virtual override returns (uint256 /*amountSharesOut*/) {
         if (tokenIn == NATIVE) {
-            // WETH.deposit{value: amountDeposited}();
+            IWETH WETH = IWETH(tokenIn);
+            WETH.deposit{ value: amountDeposited }();
         }
 
-        return IERC4626(rye).deposit(amountDeposited, address(this));
-    }
-
-    function _redeem(
-        address receiver,
-        address /*tokenOut*/,
-        uint256 amountSharesToRedeem
-    ) internal virtual override returns (uint256 /*amountTokenOut*/) {
-        _transferOut(rye, receiver, amountSharesToRedeem);
-        return amountSharesToRedeem;
-    }
-
-    /*///////////////////////////////////////////////////////////////
-                               EXCHANGE-RATE
-    //////////////////////////////////////////////////////////////*/
-
-    function exchangeRate() public view virtual override returns (uint256) {
-        // return ISwETH(swETH).getRate();
+        // assume it is WETH then
+        return IERC4626(vaultAddress).deposit(amountDeposited, address(this));
     }
 
     /*///////////////////////////////////////////////////////////////
                 MISC FUNCTIONS FOR METADATA
     //////////////////////////////////////////////////////////////*/
 
-    function _previewDeposit(
-        address tokenIn,
-        uint256 amountTokenToDeposit
-    ) internal view override returns (uint256 /*amountSharesOut*/) {
-        // return rye.previewDeposit(amountTokenToDeposit);
-    }
-
-    function _previewRedeem(
-        address /*tokenOut*/,
-        uint256 amountSharesToRedeem
-    ) internal pure override returns (uint256 /*amountTokenOut*/) {
-        return amountSharesToRedeem;
-    }
-
-    function getTokensIn()
-        public
-        view
-        virtual
-        override
-        returns (address[] memory res)
-    {
+    /**
+     * @notice Returns the various tokens that are accepted to mint shares
+     * @return res array that includes native ETH and WETH for RYE
+     */
+    function getTokensIn() public view virtual override returns (address[] memory res) {
         res = new address[](2);
-        res[0] = WETH;
+        res[0] = wethAddress;
         res[1] = NATIVE;
     }
 
-    function getTokensOut()
-        public
-        view
-        virtual
-        override
-        returns (address[] memory res)
-    {
-        res = new address[](1);
-        res[0] = rye;
-    }
-
-    function isValidTokenIn(
-        address token
-    ) public view virtual override returns (bool) {
-        return token == NATIVE || token == rye;
-    }
-
-    function isValidTokenOut(
-        address token
-    ) public view virtual override returns (bool) {
-        return token == rye;
-    }
-
-    function assetInfo()
-        external
-        pure
-        returns (AssetType assetType, address assetAddress, uint8 assetDecimals)
-    {
-        return (AssetType.TOKEN, NATIVE, 18);
+    /**
+     * @notice Checks whether token is valid, and considers native ETH
+     * @param token that is being checked
+     */
+    function isValidTokenIn(address token) public view virtual override returns (bool) {
+        return token == NATIVE || token == vaultAddress;
     }
 }
