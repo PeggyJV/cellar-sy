@@ -104,17 +104,17 @@ contract ERC4626SY is SYBase {
      * @dev asset in accordance to IStandardizedYield is the ERC 4626 base asset. So for RYE, it's wETH. For RYU, is USDC.
      */
     function exchangeRate() public view virtual override returns (uint256 res) {
-        uint256 res;
+        bool notSafeToUse;
         if (address(sharePriceOracle) != address(0)) {
-            (, uint256 res, bool notSafeToUse) = sharePriceOracle.getLatest(); // sharePrice is equivalent to timeWeightedAverageAnswer when pulling from sharePriceOracle source
+            (, res, notSafeToUse) = sharePriceOracle.getLatest(); // sharePrice is equivalent to timeWeightedAverageAnswer when pulling from sharePriceOracle source
 
-            // shareprice oracle always gives asset decimals
+            // return normalized shareprice if (in asset decimals) if deemed safe
             if (!notSafeToUse) {
-                res = res.changeDecimals(ORACLE_DECIMALS, TARGET_ASSET_DECIMALS);
+                return res = res.changeDecimals(ORACLE_DECIMALS, TARGET_ASSET_DECIMALS);
             }
         }
 
-        // manual onchain calculation
+        // if res from sharePriceOracle not deemed safe, carry out manual onchain calculation
         uint256 totalShares = vault.totalSupply();
         // Get total Assets but scale it up to decimals decimals of precision.
         uint256 totalAssets = vault.totalAssets();
